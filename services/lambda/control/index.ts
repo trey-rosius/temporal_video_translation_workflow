@@ -39,17 +39,50 @@ export const handler = async (event: any) => {
   try {
     if (method === 'GET') {
       const status = await handle.query('status');
+      let transcription = '';
+      if (status === 'AWAITING_REVIEW' || status === 'TRANSLATING' || status === 'DUBBING' || status === 'UPLOADING' || status === 'COMPLETED') {
+        try {
+          transcription = await handle.query('transcription');
+        } catch (e) {
+          console.log('Transcription query failed (might not be ready yet)');
+        }
+      }
       return {
         statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workflowId: id, status }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        },
+        body: JSON.stringify({ workflowId: id, status, transcription }),
       };
     } else if (method === 'POST') {
       const body = JSON.parse(event.body || '{}');
+      
+      if (body.action === 'resolveTranscription') {
+        await handle.signal('resolveTranscription', body.text);
+        return {
+          statusCode: 200,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          },
+          body: JSON.stringify({ message: 'Transcription resolved' }),
+        };
+      }
+
       await handle.signal('updateConfig', body);
       return {
         statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        },
         body: JSON.stringify({ message: 'Signal sent successfully' }),
       };
     }
@@ -57,7 +90,12 @@ export const handler = async (event: any) => {
     console.error('Error interacting with workflow:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      },
       body: JSON.stringify({ error: error.message }),
     };
   }

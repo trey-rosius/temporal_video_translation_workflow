@@ -1,0 +1,19 @@
+node_modules
+cdk.out
+cdk.out.test
+.git
+.gitignore
+.env
+README.md
+*.mp4
+output.txt
+test-temporal-connection.*
+check_logs.ts
+check_workflow_history.ts
+start_workflow.ts
+upload.ts
+# Ignore service JS/Map files if they exist in source
+services/**/*.js
+services/**/*.js.map
+services/**/*.d.ts
+frontend

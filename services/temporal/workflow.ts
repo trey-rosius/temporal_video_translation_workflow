@@ -1,10 +1,11 @@
-import { proxyActivities, defineSignal, defineQuery, setHandler } from '@temporalio/workflow';
+import { proxyActivities, defineSignal, defineQuery, setHandler, condition } from '@temporalio/workflow';
 import type * as activities from './activities';
 
-// These are used by the worker, but the types are used by the Lambda
 export const statusQuery = defineQuery<string>('status');
 export const progressQuery = defineQuery<number>('progress');
+export const transcriptionQuery = defineQuery<string>('transcription');
 export const updateConfigSignal = defineSignal<[any]>('updateConfig');
+export const resolveTranscriptionSignal = defineSignal<[string]>('resolveTranscription');
 
 const { ingest, transcribe, translate, dub, upload } = proxyActivities<typeof activities>({
   startToCloseTimeout: '30 minutes',
@@ -19,11 +20,19 @@ const { ingest, transcribe, translate, dub, upload } = proxyActivities<typeof ac
 export async function videoTranslationWorkflow(input: { bucket: string; key: string }): Promise<string> {
   let status = 'INITIALIZING';
   let progress = 0;
+  let currentTranscription = '';
+  let userApprovedTranscript = '';
 
   setHandler(statusQuery, () => status);
   setHandler(progressQuery, () => progress);
+  setHandler(transcriptionQuery, () => currentTranscription);
+  
   setHandler(updateConfigSignal, (config) => {
     console.log('Update config received:', config);
+  });
+
+  setHandler(resolveTranscriptionSignal, (approvedText) => {
+    userApprovedTranscript = approvedText;
   });
 
   status = 'INGESTING';
@@ -32,18 +41,24 @@ export async function videoTranslationWorkflow(input: { bucket: string; key: str
   
   status = 'TRANSCRIBING';
   progress = 30;
-  const transcript = await transcribe(localPath, input.bucket, input.key);
+  currentTranscription = await transcribe(localPath, input.bucket, input.key);
+  
+  // HUMAN-IN-THE-LOOP: Wait for user approval/modification
+  status = 'AWAITING_REVIEW';
+  progress = 45;
+  
+  await condition(() => userApprovedTranscript !== '');
   
   status = 'TRANSLATING';
-  progress = 50;
-  const translatedText = await translate(transcript);
+  progress = 60;
+  const translatedText = await translate(userApprovedTranscript);
   
-  status = 'DUBDUBBING';
-  progress = 70;
+  status = 'DUBBING';
+  progress = 80;
   const dubbedPath = await dub(localPath, translatedText);
   
   status = 'UPLOADING';
-  progress = 90;
+  progress = 95;
   const finalUrl = await upload(dubbedPath, input.bucket);
   
   status = 'COMPLETED';
