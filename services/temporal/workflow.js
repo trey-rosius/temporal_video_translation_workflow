@@ -1,0 +1,46 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.videoTranslationWorkflow = exports.updateConfigSignal = exports.progressQuery = exports.statusQuery = void 0;
+const workflow_1 = require("@temporalio/workflow");
+// These are used by the worker, but the types are used by the Lambda
+exports.statusQuery = (0, workflow_1.defineQuery)('status');
+exports.progressQuery = (0, workflow_1.defineQuery)('progress');
+exports.updateConfigSignal = (0, workflow_1.defineSignal)('updateConfig');
+const { ingest, transcribe, translate, dub, upload } = (0, workflow_1.proxyActivities)({
+    startToCloseTimeout: '30 minutes',
+    retry: {
+        initialInterval: '1s',
+        backoffCoefficient: 2,
+        maximumInterval: '10s',
+        maximumAttempts: 5,
+    },
+});
+async function videoTranslationWorkflow(input) {
+    let status = 'INITIALIZING';
+    let progress = 0;
+    (0, workflow_1.setHandler)(exports.statusQuery, () => status);
+    (0, workflow_1.setHandler)(exports.progressQuery, () => progress);
+    (0, workflow_1.setHandler)(exports.updateConfigSignal, (config) => {
+        console.log('Update config received:', config);
+    });
+    status = 'INGESTING';
+    progress = 10;
+    const localPath = await ingest(input.bucket, input.key);
+    status = 'TRANSCRIBING';
+    progress = 30;
+    const transcript = await transcribe(localPath, input.bucket, input.key);
+    status = 'TRANSLATING';
+    progress = 50;
+    const translatedText = await translate(transcript);
+    status = 'DUBDUBBING';
+    progress = 70;
+    const dubbedPath = await dub(localPath, translatedText);
+    status = 'UPLOADING';
+    progress = 90;
+    const finalUrl = await upload(dubbedPath, input.bucket);
+    status = 'COMPLETED';
+    progress = 100;
+    return finalUrl;
+}
+exports.videoTranslationWorkflow = videoTranslationWorkflow;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoid29ya2Zsb3cuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJ3b3JrZmxvdy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFBQSxtREFBOEY7QUFHOUYscUVBQXFFO0FBQ3hELFFBQUEsV0FBVyxHQUFHLElBQUEsc0JBQVcsRUFBUyxRQUFRLENBQUMsQ0FBQztBQUM1QyxRQUFBLGFBQWEsR0FBRyxJQUFBLHNCQUFXLEVBQVMsVUFBVSxDQUFDLENBQUM7QUFDaEQsUUFBQSxrQkFBa0IsR0FBRyxJQUFBLHVCQUFZLEVBQVEsY0FBYyxDQUFDLENBQUM7QUFFdEUsTUFBTSxFQUFFLE1BQU0sRUFBRSxVQUFVLEVBQUUsU0FBUyxFQUFFLEdBQUcsRUFBRSxNQUFNLEVBQUUsR0FBRyxJQUFBLDBCQUFlLEVBQW9CO0lBQ3hGLG1CQUFtQixFQUFFLFlBQVk7SUFDakMsS0FBSyxFQUFFO1FBQ0wsZUFBZSxFQUFFLElBQUk7UUFDckIsa0JBQWtCLEVBQUUsQ0FBQztRQUNyQixlQUFlLEVBQUUsS0FBSztRQUN0QixlQUFlLEVBQUUsQ0FBQztLQUNuQjtDQUNGLENBQUMsQ0FBQztBQUVJLEtBQUssVUFBVSx3QkFBd0IsQ0FBQyxLQUFzQztJQUNuRixJQUFJLE1BQU0sR0FBRyxjQUFjLENBQUM7SUFDNUIsSUFBSSxRQUFRLEdBQUcsQ0FBQyxDQUFDO0lBRWpCLElBQUEscUJBQVUsRUFBQyxtQkFBVyxFQUFFLEdBQUcsRUFBRSxDQUFDLE1BQU0sQ0FBQyxDQUFDO0lBQ3RDLElBQUEscUJBQVUsRUFBQyxxQkFBYSxFQUFFLEdBQUcsRUFBRSxDQUFDLFFBQVEsQ0FBQyxDQUFDO0lBQzFDLElBQUEscUJBQVUsRUFBQywwQkFBa0IsRUFBRSxDQUFDLE1BQU0sRUFBRSxFQUFFO1FBQ3hDLE9BQU8sQ0FBQyxHQUFHLENBQUMseUJBQXlCLEVBQUUsTUFBTSxDQUFDLENBQUM7SUFDakQsQ0FBQyxDQUFDLENBQUM7SUFFSCxNQUFNLEdBQUcsV0FBVyxDQUFDO0lBQ3JCLFFBQVEsR0FBRyxFQUFFLENBQUM7SUFDZCxNQUFNLFNBQVMsR0FBRyxNQUFNLE1BQU0sQ0FBQyxLQUFLLENBQUMsTUFBTSxFQUFFLEtBQUssQ0FBQyxHQUFHLENBQUMsQ0FBQztJQUV4RCxNQUFNLEdBQUcsY0FBYyxDQUFDO0lBQ3hCLFFBQVEsR0FBRyxFQUFFLENBQUM7SUFDZCxNQUFNLFVBQVUsR0FBRyxNQUFNLFVBQVUsQ0FBQyxTQUFTLEVBQUUsS0FBSyxDQUFDLE1BQU0sRUFBRSxLQUFLLENBQUMsR0FBRyxDQUFDLENBQUM7SUFFeEUsTUFBTSxHQUFHLGFBQWEsQ0FBQztJQUN2QixRQUFRLEdBQUcsRUFBRSxDQUFDO0lBQ2QsTUFBTSxjQUFjLEdBQUcsTUFBTSxTQUFTLENBQUMsVUFBVSxDQUFDLENBQUM7SUFFbkQsTUFBTSxHQUFHLFlBQVksQ0FBQztJQUN0QixRQUFRLEdBQUcsRUFBRSxDQUFDO0lBQ2QsTUFBTSxVQUFVLEdBQUcsTUFBTSxHQUFHLENBQUMsU0FBUyxFQUFFLGNBQWMsQ0FBQyxDQUFDO0lBRXhELE1BQU0sR0FBRyxXQUFXLENBQUM7SUFDckIsUUFBUSxHQUFHLEVBQUUsQ0FBQztJQUNkLE1BQU0sUUFBUSxHQUFHLE1BQU0sTUFBTSxDQUFDLFVBQVUsRUFBRSxLQUFLLENBQUMsTUFBTSxDQUFDLENBQUM7SUFFeEQsTUFBTSxHQUFHLFdBQVcsQ0FBQztJQUNyQixRQUFRLEdBQUcsR0FBRyxDQUFDO0lBQ2YsT0FBTyxRQUFRLENBQUM7QUFDbEIsQ0FBQztBQWpDRCw0REFpQ0MiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwcm94eUFjdGl2aXRpZXMsIGRlZmluZVNpZ25hbCwgZGVmaW5lUXVlcnksIHNldEhhbmRsZXIgfSBmcm9tICdAdGVtcG9yYWxpby93b3JrZmxvdyc7XG5pbXBvcnQgdHlwZSAqIGFzIGFjdGl2aXRpZXMgZnJvbSAnLi9hY3Rpdml0aWVzJztcblxuLy8gVGhlc2UgYXJlIHVzZWQgYnkgdGhlIHdvcmtlciwgYnV0IHRoZSB0eXBlcyBhcmUgdXNlZCBieSB0aGUgTGFtYmRhXG5leHBvcnQgY29uc3Qgc3RhdHVzUXVlcnkgPSBkZWZpbmVRdWVyeTxzdHJpbmc+KCdzdGF0dXMnKTtcbmV4cG9ydCBjb25zdCBwcm9ncmVzc1F1ZXJ5ID0gZGVmaW5lUXVlcnk8bnVtYmVyPigncHJvZ3Jlc3MnKTtcbmV4cG9ydCBjb25zdCB1cGRhdGVDb25maWdTaWduYWwgPSBkZWZpbmVTaWduYWw8W2FueV0+KCd1cGRhdGVDb25maWcnKTtcblxuY29uc3QgeyBpbmdlc3QsIHRyYW5zY3JpYmUsIHRyYW5zbGF0ZSwgZHViLCB1cGxvYWQgfSA9IHByb3h5QWN0aXZpdGllczx0eXBlb2YgYWN0aXZpdGllcz4oe1xuICBzdGFydFRvQ2xvc2VUaW1lb3V0OiAnMzAgbWludXRlcycsXG4gIHJldHJ5OiB7XG4gICAgaW5pdGlhbEludGVydmFsOiAnMXMnLFxuICAgIGJhY2tvZmZDb2VmZmljaWVudDogMixcbiAgICBtYXhpbXVtSW50ZXJ2YWw6ICcxMHMnLFxuICAgIG1heGltdW1BdHRlbXB0czogNSxcbiAgfSxcbn0pO1xuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gdmlkZW9UcmFuc2xhdGlvbldvcmtmbG93KGlucHV0OiB7IGJ1Y2tldDogc3RyaW5nOyBrZXk6IHN0cmluZyB9KTogUHJvbWlzZTxzdHJpbmc+IHtcbiAgbGV0IHN0YXR1cyA9ICdJTklUSUFMSVpJTkcnO1xuICBsZXQgcHJvZ3Jlc3MgPSAwO1xuXG4gIHNldEhhbmRsZXIoc3RhdHVzUXVlcnksICgpID0+IHN0YXR1cyk7XG4gIHNldEhhbmRsZXIocHJvZ3Jlc3NRdWVyeSwgKCkgPT4gcHJvZ3Jlc3MpO1xuICBzZXRIYW5kbGVyKHVwZGF0ZUNvbmZpZ1NpZ25hbCwgKGNvbmZpZykgPT4ge1xuICAgIGNvbnNvbGUubG9nKCdVcGRhdGUgY29uZmlnIHJlY2VpdmVkOicsIGNvbmZpZyk7XG4gIH0pO1xuXG4gIHN0YXR1cyA9ICdJTkdFU1RJTkcnO1xuICBwcm9ncmVzcyA9IDEwO1xuICBjb25zdCBsb2NhbFBhdGggPSBhd2FpdCBpbmdlc3QoaW5wdXQuYnVja2V0LCBpbnB1dC5rZXkpO1xuICBcbiAgc3RhdHVzID0gJ1RSQU5TQ1JJQklORyc7XG4gIHByb2dyZXNzID0gMzA7XG4gIGNvbnN0IHRyYW5zY3JpcHQgPSBhd2FpdCB0cmFuc2NyaWJlKGxvY2FsUGF0aCwgaW5wdXQuYnVja2V0LCBpbnB1dC5rZXkpO1xuICBcbiAgc3RhdHVzID0gJ1RSQU5TTEFUSU5HJztcbiAgcHJvZ3Jlc3MgPSA1MDtcbiAgY29uc3QgdHJhbnNsYXRlZFRleHQgPSBhd2FpdCB0cmFuc2xhdGUodHJhbnNjcmlwdCk7XG4gIFxuICBzdGF0dXMgPSAnRFVCRFVCQklORyc7XG4gIHByb2dyZXNzID0gNzA7XG4gIGNvbnN0IGR1YmJlZFBhdGggPSBhd2FpdCBkdWIobG9jYWxQYXRoLCB0cmFuc2xhdGVkVGV4dCk7XG4gIFxuICBzdGF0dXMgPSAnVVBMT0FESU5HJztcbiAgcHJvZ3Jlc3MgPSA5MDtcbiAgY29uc3QgZmluYWxVcmwgPSBhd2FpdCB1cGxvYWQoZHViYmVkUGF0aCwgaW5wdXQuYnVja2V0KTtcbiAgXG4gIHN0YXR1cyA9ICdDT01QTEVURUQnO1xuICBwcm9ncmVzcyA9IDEwMDtcbiAgcmV0dXJuIGZpbmFsVXJsO1xufVxuIl19

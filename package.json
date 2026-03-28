@@ -1,0 +1,32 @@
+{
+  "name": "temporal-video-pipeline",
+  "version": "1.0.0",
+  "description": "Resilient video translation workflow using Temporal and AWS",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node services/temporal/worker.ts",
+    "build": "tsc",
+    "cdk": "cdk",
+    "test-connection": "ts-node services/temporal/check-connection.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.1019.0",
+    "@aws-sdk/client-polly": "^3.1019.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-transcribe": "^3.0.0",
+    "@aws-sdk/client-translate": "^3.0.0",
+    "@temporalio/client": "^1.11.0",
+    "@temporalio/worker": "^1.11.0",
+    "@temporalio/workflow": "^1.11.0",
+    "aws-cdk-lib": "^2.244.0",
+    "constructs": "^10.0.0",
+    "dotenv": "^16.4.5",
+    "fluent-ffmpeg": "^2.1.2"
+  },
+  "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.24",
+    "@types/node": "^20.12.7",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.4.5"
+  }
+}
