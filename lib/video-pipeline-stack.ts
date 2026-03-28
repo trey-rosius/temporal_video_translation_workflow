@@ -111,8 +111,18 @@ export class VideoPipelineStack extends cdk.Stack {
 
     // 5. API Gateway for Control Plane
     const api = new apigateway.RestApi(this, 'VideoPipelineApi');
-    const workflow = api.root.addResource('workflow');
-    const singleWorkflow = workflow.addResource('{id}');
+    const workflow = api.root.addResource('workflow', {
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+      },
+    });
+    const singleWorkflow = workflow.addResource('{id}', {
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+      },
+    });
 
     // Control Lambda (Query/Signal)
     const controlLambda = new nodejs.NodejsFunction(this, 'ControlLambda', {

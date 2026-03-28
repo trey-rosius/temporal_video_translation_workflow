@@ -24,21 +24,6 @@ async function run() {
 
   console.log(`Connecting to Temporal at ${address} in namespace ${namespace}`);
   
-  // Quick network check
-  try {
-    const { execSync } = require('child_process');
-    console.log("Network check (ping):");
-    try {
-      execSync(`ping -c 1 ${address.split(':')[0]}`, { stdio: 'inherit' });
-    } catch (e) {
-      console.log("Ping failed (expected in some VPCs), trying nc...");
-    }
-  } catch (err) {
-    console.warn("Network diagnostic tools failed:", err);
-  }
-
-  console.log(`Connecting to Temporal at ${address} in namespace ${namespace}`);
-  
   const connectionOptions: any = {
     address: address,
     tls: !!apiKey,
