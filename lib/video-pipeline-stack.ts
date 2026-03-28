@@ -8,6 +8,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -45,12 +46,18 @@ export class VideoPipelineStack extends cdk.Stack {
     
     mediaBucket.grantReadWrite(taskRole);
 
+    // 2.5 Docker Image Asset (Build and Push automatically)
+    const workerImage = new ecr_assets.DockerImageAsset(this, 'WorkerImage', {
+      directory: path.join(__dirname, '../'),
+      platform: ecr_assets.Platform.LINUX_AMD64,
+    });
+
     // 3. ECS Express Mode Service (Minimal Config)
     const expressService = new ecs.CfnExpressGatewayService(this, 'WorkerService', {
       serviceName: 'video-worker-express',
       // If cluster is omitted, it uses the default account cluster
       primaryContainer: {
-        image: '730335533756.dkr.ecr.us-east-1.amazonaws.com/temporal-video-pipeline:v4-fixed-ingest',
+        image: workerImage.imageUri,
         containerPort: 8080,
          environment: [
           { name: 'TEMPORAL_ADDRESS', value: process.env.TEMPORAL_ADDRESS || '' },
